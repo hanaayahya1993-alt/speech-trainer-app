@@ -4,10 +4,18 @@ import time
 from openai import OpenAI
 from audio_recorder_streamlit import audio_recorder
 
-# إعداد صفحة التطبيق
-st.set_page_config(page_title="مدرب الإلقاء الارتجالي الصوتي", page_icon="🎙️", layout="centered")
+# إعداد الصفحة
+st.set_page_config(page_title="مدرب الإلقاء الارتجالي", page_icon="🎙️", layout="centered")
 
-st.title("🎙️ مدرب الإلقاء والارتجال الصوتي الذكي")
+st.markdown("""
+    <style>
+    .main-title { text-align: center; color: #1E293B; margin-bottom: 10px; }
+    .stApp { background-color: #F8FAFC; }
+    .timer-container { display: flex; justify-content: center; align-items: center; margin: 20px 0; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("<h1 class='main-title'>🎙️ مدرب الإلقاء والارتجال السريع</h1>", unsafe_allow_html=True)
 st.write("سجل إجابتك الصوتية بالمايكروفون. انتبه للمؤقت لتلتزم بالوقت المحدد (40 ثانية)!")
 
 # إدارة مفتاح API
@@ -15,10 +23,8 @@ openai_api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 
 if not openai_api_key:
     openai_api_key = st.sidebar.text_input("أدخل OpenAI API Key الخاص بك:", type="password")
-    if not openai_api_key:
-        st.warning("⚠️ يرجى إدخال مفتاح OpenAI API للبدء.")
 
-# قائمة المواضيع الارتجالية
+# المواضيع الارتجالية
 TOPICS = [
     "لو أُتيحت لك الفرصة لتغيير عادة واحدة يمارسها أغلب الناس يومياً، ما هي هذه العادة؟ ولماذا؟",
     "ما هي أهم مهارة يحتاجها قائد المستقبل في ظل الذكاء الاصطناعي؟",
@@ -36,60 +42,85 @@ st.markdown("---")
 st.subheader(f"🎯 التحدي رقم ({st.session_state.topic_index + 1}):")
 st.info(f"**\"{current_topic}\"**")
 
-# ----------------- قسم المؤقت والتسجيل -----------------
-st.markdown("### ⏱️ المؤقت والتسجيل الصوتي (40 ثانية)")
-st.caption("🔴 الأخضر: 0-20ث | 🟡 الأصفر: 20-30ث | 🔴 الأحمر: 30-40ث")
+# ----------------- العداد الدائري والتسجيل في المنتصف -----------------
+st.markdown("<h3 style='text-align: center;'>⏱️ المؤقت التفاعلي (40 ثانية)</h3>", unsafe_allow_html=True)
 
-col1, col2 = st.columns([1, 1])
+# مكان عرض العداد الدائري في الوسط
+timer_box = st.empty()
 
-with col1:
-    st.markdown("#### 1. ابدأ المؤقت:")
-    if st.button("▶️ تشغيل العد التنازلي"):
-        timer_place = st.empty()
-        status_place = st.empty()
-        TOTAL_SECONDS = 40
-        for remaining in range(TOTAL_SECONDS, -1, -1):
-            mins, secs = divmod(remaining, 60)
-            time_format = f"{mins:02d}:{secs:02d}"
-            
-            elapsed = TOTAL_SECONDS - remaining
-            if elapsed < 20:
-                status_place.markdown("🟢 **المنطقة الآمنة** (واصل حديثك)")
-            elif 20 <= elapsed < 30:
-                status_place.markdown("🟡 **اقترب الوقت** (ابدأ بإنهاء الفكرة)")
-            elif 30 <= elapsed <= 40:
-                status_place.markdown("🔴 **الخاتمة فوراً** (وصلت للحد الأعلى)")
-            
-            timer_place.metric(label="الوقت المتبقي", value=time_format)
-            time.sleep(1)
-        status_place.error("⏰ انتهى الوقت المحدد (40 ثانية)!")
+def render_circular_timer(seconds_left, total_seconds=40):
+    percent = (seconds_left / total_seconds) * 100
+    dashoffset = 283 - (283 * percent / 100)
+    
+    # تحديد اللون حسب التوقيت
+    elapsed = total_seconds - seconds_left
+    color = "#22C55E" # أخضر
+    status_text = "🟢 المنطقة الآمنة"
+    if 20 <= elapsed < 30:
+        color = "#EAB308" # أصفر
+        status_text = "🟡 جهز الخاتمة"
+    elif elapsed >= 30:
+        color = "#EF4444" # أحمر
+        status_text = "🔴 الخاتمة فوراً!"
 
-with col2:
-    st.markdown("#### 2. سجل صوتك:")
+    svg_html = f"""
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="position: relative; width: 150px; height: 150px;">
+            <svg width="150" height="150" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#E2E8F0" stroke-width="8" />
+                <circle cx="50" cy="50" r="45" fill="none" stroke="{color}" stroke-width="8"
+                        stroke-dasharray="283" stroke-dashoffset="{dashoffset}"
+                        stroke-linecap="round" transform="rotate(-90 50 50)" style="transition: all 1s linear;" />
+            </svg>
+            <div style="position: absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:bold; color:#1E293B;">
+                {seconds_left}s
+            </div>
+        </div>
+        <div style="margin-top:10px; font-size:16px; font-weight:bold; color:{color};">{status_text}</div>
+    </div>
+    """
+    return svg_html
+
+# عرض الحالة الابتدائية 40 ثانية
+timer_box.markdown(render_circular_timer(40), unsafe_allow_html=True)
+
+col_center = st.columns([1, 2, 1])
+
+with col_center[1]:
+    start_btn = st.button("▶️ ابدأ العداد الدائري", use_container_width=True)
+
+if start_btn:
+    for s in range(40, -1, -1):
+        timer_box.markdown(render_circular_timer(s), unsafe_allow_html=True)
+        time.sleep(1)
+
+st.markdown("<h4 style='text-align: center; margin-top:20px;'>🎤 اضغط المايك وابدأ الحديث:</h4>", unsafe_allow_html=True)
+
+# وضع التسجيل في منتصف الصفحة
+c1, c2, c3 = st.columns([1, 1, 1])
+with c2:
     audio_bytes = audio_recorder(
-        text="اضغط للبدء/الإيقاف",
-        recording_color="#e84c3d",
-        neutral_color="#6aa84f",
+        text="",
+        recording_color="#EF4444",
+        neutral_color="#22C55E",
         icon_name="microphone",
-        icon_size="2x"
+        icon_size="3x"
     )
 
 st.markdown("---")
 
-# ----------------- قسم المعالجة والتقييم -----------------
-user_speech = ""
-
+# ----------------- قسم التقييم -----------------
 if audio_bytes:
     st.audio(audio_bytes, format="audio/wav")
     
-    if openai_api_key and st.button("تحليل وتقييم التسجيل الصوتي 🚀"):
+    if openai_api_key and st.button("تحليل وتقييم التسجيل الصوتي 🚀", use_container_width=True):
         client = OpenAI(api_key=openai_api_key)
         
         temp_audio_file = "temp_speech.wav"
         with open(temp_audio_file, "wb") as f:
             f.write(audio_bytes)
             
-        with st.spinner("🎧 جاري تفريغ الصوت إلى نص عبر Whisper API..."):
+        with st.spinner("🎧 جاري تفريغ الصوت عبر Whisper API..."):
             try:
                 with open(temp_audio_file, "rb") as audio_file:
                     transcription = client.audio.transcriptions.create(
@@ -104,33 +135,22 @@ if audio_bytes:
                 
             except Exception as e:
                 st.error(f"حدث خطأ أثناء تفريغ الصوت: {e}")
+                user_speech = ""
                 
         if user_speech:
-            with st.spinner("📊 جاري تقييم الأداء وفق معايير الخطابة..."):
+            with st.spinner("📊 جاري تقييم الأداء وفق معايير الخطابة الارتجالية..."):
                 SYSTEM_PROMPT = """
-                أنت مدرب خطابة وإلقاء ارتجالي خبير متمرس في التدريب على الارتجال السريع (40 Seconds Elevator Pitch / Rapid Table Topics).
-                دورك هو تقييم خطبة المتدرب الارتجالية القصيرة جداً بناءً على السؤال المطروح والنص المفرغ من صوته.
+                أنت مدرب خطابة وإلقاء ارتجالي خبير متمرس في التدريب على الارتجال السريع (40 Seconds Elevator Pitch).
+                قيم خطبة المتدرب بناءً على السؤال المطروح والنص المفرغ من صوته.
 
-                ضع في اعتبارك أن زمن الخطبة هو 40 ثانية فقط، مما يتطلب تكثيفاً عالياً واستبعاد المداخل الطويلة.
-
-                يرجى تقديم التقييم بدقة ووضوح باستخدام تنسيق Markdown وفق العناصر التالية حصراً:
-
-                1. جدول تقييم بالأرقام (من 10) يغطي المعايير التالية:
-                   - قوة البداية والسرعة (Hook & Rapid Impact) - مدى سرعة الدخول في الموضوع دون مقدمات مستهلكة.
-                   - التركيز والتكثيف (Focus & Clarity) - إيصال فكرة جوهرية واحدة بوضوح خلال الزمن الوجيز.
-                   - قوة الخاتمة والإيجاز (Punchy Ending) - اختتام الكلام بجملة قوية ومباشرة قبل انتهاء الـ 40 ثانية.
-                   (ضع نقطة قوة بارزة واحدة أمام كل معيار).
-
-                2. نقاط التطور الرئيسية (Key Improvement Areas) - نقطتان فقط تركزان على التكثيف وحذف الفوائض.
-
-                3. نموذج تحسيني مقترح (40-Second Refinement) - إعادة صياغة مقتضبة ومثالية لخطبته تناسب إلقاءها كاملاً في أقل من 40 ثانية.
-
-                اجعل نبرتك مشجعة، حازمة، ومباشرة.
+                قدم التقييم بالتنسيق التالي حصراً:
+                1. جدول تقييم من 10 لمعايير: قوة البداية، التركيز والتكثيف، وقوة الخاتمة.
+                2. نقطتا تطور رئيسيتان للتكثيف.
+                3. نموذج تحسيني مقترح لخطبته في أقل من 40 ثانية.
                 """
                 
                 try:
-                    prompt_content = f"الموضوع: \"{current_topic}\"\nإجابة المتدرب الصوتي (مفرغة): \"{user_speech}\""
-                    
+                    prompt_content = f"الموضوع: \"{current_topic}\"\nإجابة المتدرب الصوتي: \"{user_speech}\""
                     response = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[
@@ -139,16 +159,13 @@ if audio_bytes:
                         ],
                         temperature=0.7
                     )
-                    
-                    st.markdown("---")
                     st.markdown("### 📝 التقييم والملاحظات:")
                     st.markdown(response.choices[0].message.content)
-                    
                 except Exception as e:
                     st.error(f"حدث خطأ أثناء التقييم: {e}")
 
-# زر الانتقال للتحدي التالي
+# زر التحدي التالي
 st.markdown("---")
-if st.button("التحدي التالي ⏭️"):
+if st.button("التحدي التالي ⏭️", use_container_width=True):
     st.session_state.topic_index = (st.session_state.topic_index + 1) % len(TOPICS)
     st.rerun()
