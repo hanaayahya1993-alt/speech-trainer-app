@@ -36,50 +36,47 @@ st.markdown("---")
 st.subheader(f"🎯 التحدي رقم ({st.session_state.topic_index + 1}):")
 st.info(f"**\"{current_topic}\"**")
 
-# ----------------- قسم المؤقت التفاعلي (40 ثانية) -----------------
-st.markdown("### ⏱️ مؤقت الإلقاء الارتجالي (40 ثانية)")
-st.caption("الحد الأقصى: 40 ثانية | الأخضر: 20ث | الأصفر: 30ث | الأحمر: 40ث")
+# ----------------- قسم المؤقت والتسجيل -----------------
+st.markdown("### ⏱️ المؤقت والتسجيل الصوتي (40 ثانية)")
+st.caption("🔴 الأخضر: 0-20ث | 🟡 الأصفر: 20-30ث | 🔴 الأحمر: 30-40ث")
 
-col_timer_btn, col_timer_disp = st.columns([1, 2])
+col1, col2 = st.columns([1, 1])
 
-with col_timer_btn:
-    start_timer = st.button("▶️ ابدأ المؤقت (40 ثانية)")
+with col1:
+    st.markdown("#### 1. ابدأ المؤقت:")
+    if st.button("▶️ تشغيل العد التنازلي"):
+        timer_place = st.empty()
+        status_place = st.empty()
+        TOTAL_SECONDS = 40
+        for remaining in range(TOTAL_SECONDS, -1, -1):
+            mins, secs = divmod(remaining, 60)
+            time_format = f"{mins:02d}:{secs:02d}"
+            
+            elapsed = TOTAL_SECONDS - remaining
+            if elapsed < 20:
+                status_place.markdown("🟢 **المنطقة الآمنة** (واصل حديثك)")
+            elif 20 <= elapsed < 30:
+                status_place.markdown("🟡 **اقترب الوقت** (ابدأ بإنهاء الفكرة)")
+            elif 30 <= elapsed <= 40:
+                status_place.markdown("🔴 **الخاتمة فوراً** (وصلت للحد الأعلى)")
+            
+            timer_place.metric(label="الوقت المتبقي", value=time_format)
+            time.sleep(1)
+        status_place.error("⏰ انتهى الوقت المحدد (40 ثانية)!")
 
-with col_timer_disp:
-    timer_placeholder = st.empty()
-    status_placeholder = st.empty()
-
-if start_timer:
-    TOTAL_SECONDS = 40
-    for remaining in range(TOTAL_SECONDS, -1, -1):
-        mins, secs = divmod(remaining, 60)
-        time_format = f"{mins:02d}:{secs:02d}"
-        
-        elapsed = TOTAL_SECONDS - remaining
-        if elapsed < 20:
-            status_placeholder.markdown("🟢 **المنطقة الآمنة** (واصل حديثك)")
-        elif 20 <= elapsed < 30:
-            status_placeholder.markdown("🟡 **اقترب الوقت** (ابدأ بإنهاء الفكرة)")
-        elif 30 <= elapsed <= 40:
-            status_placeholder.markdown("🔴 **الخاتمة فوراً** (وصلت للحد الأعلى)")
-        
-        timer_placeholder.metric(label="الوقت المتبقي", value=time_format)
-        time.sleep(1)
-        
-    status_placeholder.error("⏰ انتهى الوقت المحدد (40 ثانية)!")
+with col2:
+    st.markdown("#### 2. سجل صوتك:")
+    audio_bytes = audio_recorder(
+        text="اضغط للبدء/الإيقاف",
+        recording_color="#e84c3d",
+        neutral_color="#6aa84f",
+        icon_name="microphone",
+        icon_size="2x"
+    )
 
 st.markdown("---")
 
-# ----------------- قسم التسجيل والتقييم -----------------
-st.markdown("### 🎤 سجل إجابتك الصوتية:")
-audio_bytes = audio_recorder(
-    text="اضغط للتسجيل",
-    recording_color="#e84c3d",
-    neutral_color="#6aa84f",
-    icon_name="microphone",
-    icon_size="3x"
-)
-
+# ----------------- قسم المعالجة والتقييم -----------------
 user_speech = ""
 
 if audio_bytes:
